@@ -84,6 +84,10 @@ client.on("messageCreate", async (message) => {
         });
     }
 
+    if (message.content == '-new'){
+        message.channel.send("holy shit it works")
+    }
+
 });
 
 client.on('interactionCreate', async(interaction) => {
