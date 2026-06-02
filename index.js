@@ -56,6 +56,13 @@ client.on("messageCreate", async (message) => {
         }
     }
 
+    if (message.content == '-bal'){
+        const money = loadMoney();
+        const authorid = message.author.id;
+        const balance = money[authorid]
+        message.channel.send(`<@${authorid}>` + " has " + balance.toString() + " points!")
+    }
+
     if (message.content == '-dice'){
         const btn_p1 = new ButtonBuilder()
             .setCustomId('Player1')
@@ -175,14 +182,30 @@ client.on('interactionCreate', async(interaction) => {
                 { length: 4 },
                 () => Math.floor(Math.random() * 6) + 1
             );
-
+            const total1 = rolls[0] + rolls[1];
+            const total2 = rolls[2] + rolls[3];
+            const result = {total1, total2};
+            let winner
+            let loser
+            if (total1 > total2) {
+                winner = game.player1;
+                loser = game.player2;
+            } else if (total2 > total1) {
+                winner = game.player2;
+                loser = game.player1;
+            } else {
+                winner = "1510311624047726674"; //bot user id
+            }
             await interaction.update({
                 content:
                     `Both players joined!\n<@${game.player1}> vs <@${game.player2}>` +
-                    `\n${rolls.join(", ")}`,
+                    `\n${rolls.join(", ")}` + `\n${total1 + " vs " + total2}` + `\n<@${winner}>` + " wins",
                 components: []
             });
-
+            const money = loadMoney()
+            money[winner] += 1;
+            money[loser] -= 1;
+            saveMoney(money)
             return; // IMPORTANT
         }
 
