@@ -85,7 +85,7 @@ client.on("messageCreate", async (message) => {
     }
 
     if (message.content == '-new'){
-        message.channel.send("holy shit it works")
+        message.channel.send("newest update real time")
     }
 
 });
