@@ -77,6 +77,7 @@ client.on("messageCreate", async (message) => {
             `${target.username} now has ${money[target.id]} points.`
         );
     }
+
     if (message.content == "-cf"){
     const authorid = message.author.id;
     const btn_heads = new ButtonBuilder()
@@ -105,6 +106,7 @@ client.on("messageCreate", async (message) => {
         const money = loadMoney();
         const authorid = message.author.id;
         const balance = money[authorid]
+        authorid = message.mentions.users.first();
         message.channel.send(`<@${authorid}>` + " has " + balance.toString() + " points!")
     }
 
@@ -185,6 +187,7 @@ client.on('interactionCreate', async(interaction) => {
     if (interaction.customId === "Player1" || interaction.customId === "Player2") {
 
         const game = games.get(interaction.message.id);
+        const money = loadMoney();
 
         if (!game) return;
 
