@@ -32,6 +32,51 @@ client.on("messageCreate", async (message) => {
     if (message.author.bot) return;
     if (!["1510406268089536522", "1393468209394487346", "1446213677152997539", "1509766418051366942"].some(roleId => message.member.roles.cache.has(roleId))) return; // founder, businessmen, staff
 
+    const args = message.content.trim().split(/ +/);
+    const command = args.shift().toLowerCase();
+    if (command === "-setbal") {
+        const money = loadMoney();
+
+        const target = message.mentions.users.first();
+        const action = args[1]?.toLowerCase();
+        const amount = parseInt(args[2]);
+
+        if (!target) {
+            return message.channel.send("Mention a user.");
+        }
+
+        if (!["add", "subtract", "set"].includes(action)) {
+            return message.channel.send("Use add, subtract, or set.");
+        }
+
+        if (isNaN(amount)) {
+            return message.channel.send("Enter a valid amount.");
+        }
+
+        if (!money[target.id]) {
+            money[target.id] = 0;
+        }
+
+        switch (action) {
+            case "add":
+                money[target.id] += amount;
+                break;
+
+            case "subtract":
+                money[target.id] -= amount;
+                break;
+
+            case "set":
+                money[target.id] = amount;
+                break;
+        }
+
+        saveMoney(money);
+
+        message.channel.send(
+            `${target.username} now has ${money[target.id]} points.`
+        );
+    }
     if (message.content == "-cf"){
     const authorid = message.author.id;
     const btn_heads = new ButtonBuilder()
@@ -84,10 +129,6 @@ client.on("messageCreate", async (message) => {
         });
     }
 
-    if (message.content == '-new'){
-        message.channel.send("newest update real time")
-    }
-
 });
 
 client.on('interactionCreate', async(interaction) => {
@@ -137,6 +178,8 @@ client.on('interactionCreate', async(interaction) => {
         }
         saveMoney(money);
         return;
+
+        
     }
 
     if (interaction.customId === "Player1" || interaction.customId === "Player2") {
