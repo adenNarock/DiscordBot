@@ -282,7 +282,7 @@ client.on('interactionCreate', async(interaction) => {
 
         const embed = new EmbedBuilder()
             .setTitle("🎲 Dice Duel")
-            .setColor(tie ? 0xFFFF00 : 0x00FF00)
+            .setColor(tie ? 0xFFFF00 : 0x00BBFF)
             .addFields(
                 {
                     name: "Player 1",
