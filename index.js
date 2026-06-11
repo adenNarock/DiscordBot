@@ -2,7 +2,7 @@ import dotenv from 'dotenv'
 import fs from "fs"
 dotenv.config()
 
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, GatewayIntentBits } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, GatewayIntentBits, EmbedBuilder} from 'discord.js';
 
 const games = new Map();
 
@@ -72,10 +72,11 @@ client.on("messageCreate", async (message) => {
         }
 
         saveMoney(money);
-
-        message.channel.send(
-            `${target.username} now has ${money[target.id]} points.`
-        );
+        const embed = new EmbedBuilder()
+            .setTitle("Balance Change")
+            .setColor(0x00BBFF)
+            .setDescription(`${target.username} now has ${money[target.id]}<:coin:1486430305207324763>`)
+        message.channel.send({embeds: [embed]});
     }
 
     if (message.content == "-cf"){
@@ -95,11 +96,21 @@ client.on("messageCreate", async (message) => {
     
     if (message.content == '-cfa'){
         const num = Math.random();
+        let embed = new EmbedBuilder()
+            .setTitle
         if (num > 0.5){
-            message.channel.send("Heads!")
+            embed = new EmbedBuilder()
+                .setTitle("Coinflip Auto")
+                .setColor(0xAA00FF)
+                .setDescription("Heads!")
         } else {
-            message.channel.send("Tails!")
+            embed = new EmbedBuilder()
+                .setTitle("Coinflip Auto")
+                .setColor(0xAA00FF)
+                .setDescription("Tails!")
         }
+
+        message.channel.send({embeds: [embed]});
     }
 
     if (message.content.startsWith("-bal")) {
@@ -107,9 +118,12 @@ client.on("messageCreate", async (message) => {
         const money = loadMoney();
         const user = message.mentions.users.first() || message.author;
         const balance = money[user.id] ?? 0;
+        const embed = new EmbedBuilder()
+            .setTitle("<:coin:1486430305207324763> Balance")
+            .setColor(0x00BBFF)
+            .setDescription(`<@${user.id}> has ${balance}<:coin:1486430305207324763>`)
 
-    return message.channel.send(`<@${user.id}> has ${balance} points!`
-    );
+    return message.channel.send({embeds: [embed]});
 }
 
     if (message.content == '-dice'){
@@ -159,31 +173,37 @@ client.on('interactionCreate', async(interaction) => {
                 win = false;
             }
         }
+
         if (win === true){
             if (money[authorid]){
                 money[authorid] += 1;
             } else {
                 money[authorid] = 1;
             }
-            await interaction.update({
-                content: "Win! Landed " + hort,
-                components: []
-            });
         } else {
             if (money[authorid]){
                 money[authorid] -= 1;
             } else {
                 money[authorid] = -1;
             }
-            await interaction.update({
-                content: "Lose :c Landed " + hort,
-                components: []
-            });
         }
-        saveMoney(money);
-        return;
 
-        
+        saveMoney(money);
+
+        const balance = money[authorid];
+
+        const embed = new EmbedBuilder()
+            .setTitle(win ? "<:coin:1486430305207324763> Flip Win!" : "<:coin:1486430305207324763> Flip Loss")
+            .setColor(win ? 0x00FF00 : 0xFF0000)
+            .addFields(
+                { name: "Result", value: hort, inline: true },
+                { name: "Balance", value: balance.toString(), inline: true }
+            )
+
+        await interaction.update({
+            embeds: [embed],
+            components: []
+        });  
     }
 
     if (interaction.customId === "Player1" || interaction.customId === "Player2") {
@@ -228,38 +248,73 @@ client.on('interactionCreate', async(interaction) => {
         // Both players joined
         if (game.player1 && game.player2) {
 
-            games.delete(interaction.message.id);
+        games.delete(interaction.message.id);
 
-            const rolls = Array.from(
-                { length: 4 },
-                () => Math.floor(Math.random() * 6) + 1
-            );
-            const total1 = rolls[0] + rolls[1];
-            const total2 = rolls[2] + rolls[3];
-            const result = {total1, total2};
-            let winner
-            let loser
-            if (total1 > total2) {
-                winner = game.player1;
-                loser = game.player2;
-            } else if (total2 > total1) {
-                winner = game.player2;
-                loser = game.player1;
-            } else {
-                winner = "1510311624047726674"; //bot user id
-            }
-            await interaction.update({
-                content:
-                    `Both players joined!\n<@${game.player1}> vs <@${game.player2}>` +
-                    `\n${rolls.join(", ")}` + `\n${total1 + " vs " + total2}` + `\n<@${winner}>` + " wins",
-                components: []
-            });
-            const money = loadMoney()
-            money[winner] += 1;
-            money[loser] -= 1;
-            saveMoney(money)
-            return; // IMPORTANT
+        const rolls = Array.from(
+            { length: 4 },
+            () => Math.floor(Math.random() * 6) + 1
+        );
+
+        const total1 = rolls[0] + rolls[1];
+        const total2 = rolls[2] + rolls[3];
+
+        let winner;
+        let loser;
+        let tie = false;
+
+        if (total1 > total2) {
+            winner = game.player1;
+            loser = game.player2;
+        } else if (total2 > total1) {
+            winner = game.player2;
+            loser = game.player1;
+        } else {
+            tie = true;
         }
+
+        const money = loadMoney();
+
+        if (!tie) {
+            money[winner] = (money[winner] ?? 0) + 1;
+            money[loser] = (money[loser] ?? 0) - 1;
+            saveMoney(money);
+        }
+
+        const embed = new EmbedBuilder()
+            .setTitle("🎲 Dice Duel")
+            .setColor(tie ? 0xFFFF00 : 0x00FF00)
+            .addFields(
+                {
+                    name: "Player 1",
+                    value: `<@${game.player1}>`,
+                    inline: true
+                },
+                {
+                    name: "Player 2",
+                    value: `<@${game.player2}>`,
+                    inline: true
+                },
+                {
+                    name: "Rolls",
+                    value:
+                        `<@${game.player1}>: ${rolls[0]},${rolls[1]} = ${total1}\n` +
+                        `<@${game.player2}>: ${rolls[2]},${rolls[3]} = ${total2}`
+                },
+                {
+                    name: "Result",
+                    value: tie
+                        ? "🤝 Tie!"
+                        : `🏆 <@${winner}> wins (+1<:coin:1486430305207324763>)`
+                }
+            )
+
+        await interaction.update({
+            embeds: [embed],
+            components: []
+        });
+
+        return;
+    }
 
         // Rebuild buttons, only showing empty slots
         const row = new ActionRowBuilder();
