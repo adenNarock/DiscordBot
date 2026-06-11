@@ -102,16 +102,15 @@ client.on("messageCreate", async (message) => {
         }
     }
 
-    if (message.content == '-bal'){
+    if (message.content.startsWith("-bal")) {
+
         const money = loadMoney();
-        let authorid = message.author.id;
-        const target = message.mentions.users.first();
-        if (target){
-            authorid = target;
-        }
-        const balance = money[authorid]
-        message.channel.send(`<@${authorid}>` + " has " + balance.toString() + " points!")
-    }
+        const user = message.mentions.users.first() || message.author;
+        const balance = money[user.id] ?? 0;
+
+    return message.channel.send(`<@${user.id}> has ${balance} points!`
+    );
+}
 
     if (message.content == '-dice'){
         const btn_p1 = new ButtonBuilder()
