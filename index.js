@@ -30,7 +30,6 @@ client.on("messageCreate", async (message) => {
     
     console.log(message)
     if (message.author.bot) return;
-    if (!message.member.roles.cache.has("1393468209394487346")) return; //role id for founder
     if (!message.member.roles.cache.has("1446213677152997539")) return; // businessmen
 
     if (message.content == "-cf"){
