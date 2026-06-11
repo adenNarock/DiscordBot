@@ -106,8 +106,9 @@ client.on("messageCreate", async (message) => {
         const money = loadMoney();
         const authorid = message.author.id;
         const balance = money[authorid]
-        if (message.mentions.users.first()) {
-            authorid = message.mentions.users.first()
+        const target = message.mentions.users.first();
+        if (target){
+            authorid = target;
         }
         message.channel.send(`<@${authorid}>` + " has " + balance.toString() + " points!")
     }
