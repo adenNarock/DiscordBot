@@ -79,6 +79,39 @@ client.on("messageCreate", async (message) => {
         message.channel.send({embeds: [embed]});
     }
 
+    if (command === "-roll") {
+
+    const numDice = parseInt(args[0]);
+    let rolls = [];
+
+    if (args.length === 0) {
+
+        const num = Math.floor(Math.random() * 6) + 1;
+        rolls = [num];
+
+    } else if (isNaN(numDice)) {
+
+        return message.channel.send("Enter a valid number");
+
+    } else {
+
+        rolls = Array.from(
+            { length: numDice },
+            () => Math.floor(Math.random() * 6) + 1
+        );
+
+    }
+    
+    const user = message.author;
+
+        const embed = new EmbedBuilder()
+            .setTitle("🎲 Dice Roll")
+            .setColor(0xAA00FF)
+            .setDescription(`${user} rolled 🎲 **${rolls.join(", ")}**`)
+
+        return message.channel.send({ embeds: [embed] });
+    }
+
     if (message.content == "-cf"){
     const authorid = message.author.id;
     const btn_heads = new ButtonBuilder()
@@ -145,18 +178,6 @@ client.on("messageCreate", async (message) => {
             player1: "",
             player2: ""
         });
-    }
-
-    if (message.content == "-roll"){
-        const rollNum = Math.floor(Math.random() * 6) + 1;
-        const user = message.author;
-
-        const embed = new EmbedBuilder()
-            .setTitle("🎲 Dice Roll")
-            .setColor(0xAA00FF)
-            .setDescription(`${user} rolled a **${rollNum}**`)
-
-        return message.channel.send({ embeds: [embed] });
     }
 });
 
