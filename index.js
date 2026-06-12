@@ -147,6 +147,17 @@ client.on("messageCreate", async (message) => {
         });
     }
 
+    if (message.content == "-roll"){
+        const rollNum = Math.floor(Math.random() * 6) + 1;
+        const user = message.author;
+
+        const embed = new EmbedBuilder()
+            .setTitle("🎲 Dice Roll")
+            .setColor(0xAA00FF)
+            .setDescription(`${user} rolled a **${rollNum}**`)
+
+        return message.channel.send({ embeds: [embed] });
+    }
 });
 
 client.on('interactionCreate', async(interaction) => {
