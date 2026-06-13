@@ -2,7 +2,7 @@ import dotenv from 'dotenv'
 import fs from "fs"
 dotenv.config()
 
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, GatewayIntentBits, EmbedBuilder} from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, GatewayIntentBits, EmbedBuilder, underline} from 'discord.js';
 
 const games = new Map();
 
@@ -66,7 +66,12 @@ function isBlackjack(cards) {
 }
 
 client.on("messageCreate", async (message) => {
-    
+    if (!message.guild) return;
+    const money = loadMoney();
+    if (isNaN(money[message.author.id]) || money[message.author.id] === undefined){
+        money[message.author.id] = 0;
+        saveMoney(money);
+    }
     console.log(message)
     if (message.author.bot) return;
     if (!["1510406268089536522", "1393468209394487346", "1446213677152997539", "1509766418051366942"].some(roleId => message.member.roles.cache.has(roleId))) return; // founder, businessmen, staff
@@ -121,6 +126,9 @@ client.on("messageCreate", async (message) => {
     if (command === "-roll") {
 
     const numDice = parseInt(args[0]);
+    if (numDice > 100){
+        return message.channel.send("Too many dice!");
+    }
     let rolls = [];
 
     if (args.length === 0) {
@@ -151,19 +159,38 @@ client.on("messageCreate", async (message) => {
         return message.channel.send({ embeds: [embed] });
     }
 
-    if (message.content == "-cf"){
-    const authorid = message.author.id;
-    const btn_heads = new ButtonBuilder()
-        .setCustomId('btn1')
-        .setLabel('Heads')
-        .setStyle(ButtonStyle.Secondary);
-    const btn_tails = new ButtonBuilder()
-        .setCustomId('btn2')
-        .setLabel('Tails')
-        .setStyle(ButtonStyle.Secondary);
-    const row = new ActionRowBuilder().addComponents(btn_heads, btn_tails);
+    if (command === "-cf"){
+        const betAmount = parseInt(args[0])
+        const money = loadMoney()
+        const authorid = message.author.id;
 
-    const sentMessage = await message.channel.send({components: [row]});
+        if (money[authorid] === undefined || betAmount > money[authorid] || isNaN(betAmount) || betAmount === undefined || betAmount < 0){
+            if (money[authorid] === undefined){
+                money[authorid] = 0;
+                saveMoney(money)
+                return message.channel.send("Not enough <:coin:1486430305207324763>")
+            } else if (betAmount > money[authorid]){
+                return message.channel.send("Not enough <:coin:1486430305207324763>")
+            } else {
+                return message.channel.send("Enter a valid amount")
+            }
+        }
+        
+        const btn_heads = new ButtonBuilder()
+            .setCustomId('btn1')
+            .setLabel('Heads')
+            .setStyle(ButtonStyle.Secondary);
+        const btn_tails = new ButtonBuilder()
+            .setCustomId('btn2')
+            .setLabel('Tails')
+            .setStyle(ButtonStyle.Secondary);
+        const row = new ActionRowBuilder().addComponents(btn_heads, btn_tails);
+
+        const sentMessage = await message.channel.send({components: [row]});
+        games.set(sentMessage.id, {
+            cfBetAmount: betAmount,
+            playerId: authorid
+        });
     }
     
     if (message.content == '-cfa'){
@@ -199,7 +226,11 @@ client.on("messageCreate", async (message) => {
     }
 
     if (command === '-dice'){
-        const amount = args[0]
+        const amount = parseInt(args[0])
+        const money = loadMoney();
+        if (amount > money[message.author.id]){
+            return message.channel.send("Not enough <:coin:1486430305207324763>")
+        }
         if (amount === undefined || isNaN(amount) || amount < 0){
             return message.channel.send("Enter a valid amount")
         }
@@ -242,8 +273,10 @@ client.on("messageCreate", async (message) => {
         );
 
 
-        if (money[user.id] === undefined || money[user.id] < betAmount || !betAmount || isNaN(betAmount) || betAmount <= 0) {
+        if (isNaN(betAmount) || betAmount < 0) {
             return message.channel.send("Enter a valid amount");
+        } else if (money[user.id] < betAmount || money[user.id] === undefined){
+            return message.channel.send("Not enough <:coin:1486430305207324763>")
         }
 
         const playerCards = [cards[0], cards[1]];
@@ -283,7 +316,7 @@ client.on("messageCreate", async (message) => {
                         value: dealerCards.map(cardName).join(", ")
                     },
                     {
-                        name: "Balance",
+                        name: "Updated Balance",
                         value: `${balance}<:coin:1486430305207324763>`
                     }
                 );
@@ -337,7 +370,22 @@ client.on("messageCreate", async (message) => {
 });
 
 client.on('interactionCreate', async(interaction) => {
+    if (!interaction.isButton()) return;
     if (interaction.customId === 'btn1' || interaction.customId === 'btn2'){
+        const game = games.get(interaction.message.id);
+
+        if (!game) {
+            return interaction.reply({
+                content: "Game not found.",
+                ephemeral: true
+            });
+        }
+        if (interaction.user.id !== game.playerId) {
+            return interaction.reply({
+                content: "This isn't your game.",
+                ephemeral: true
+            });
+        }
         const num = Math.random();
         let hort = "Heads"
         if (num <= 0.5){
@@ -360,19 +408,13 @@ client.on('interactionCreate', async(interaction) => {
                 win = false;
             }
         }
-
+        if (money[authorid] === undefined || isNaN(money[authorid])){
+            money[authorid] = 0;
+        }
         if (win === true){
-            if (money[authorid]){
-                money[authorid] += 1;
-            } else {
-                money[authorid] = 1;
-            }
+            money[authorid] += game.cfBetAmount;
         } else {
-            if (money[authorid]){
-                money[authorid] -= 1;
-            } else {
-                money[authorid] = -1;
-            }
+            money[authorid] -= game.cfBetAmount;
         }
 
         saveMoney(money);
@@ -384,13 +426,14 @@ client.on('interactionCreate', async(interaction) => {
             .setColor(win ? 0x00FF00 : 0xFF0000)
             .addFields(
                 { name: "Result", value: hort, inline: true },
-                { name: "Balance", value: balance.toString() + "<:coin:1486430305207324763>", inline: true }
+                { name: "Updated Balance", value: balance.toString() + "<:coin:1486430305207324763>", inline: true }
             )
 
         await interaction.update({
             embeds: [embed],
             components: []
-        });  
+        });
+        games.delete(interaction.message.id);  
     }
 
     if (interaction.customId === "Player1" || interaction.customId === "Player2") {
@@ -583,7 +626,7 @@ client.on('interactionCreate', async(interaction) => {
                             value: game.dealerCards.map(cardName).join(", ")
                         },
                         {
-                            name: "Balance",
+                            name: "Updated Balance",
                             value: `${balance}<:coin:1486430305207324763>`
                         }
                     );
@@ -688,7 +731,7 @@ client.on('interactionCreate', async(interaction) => {
                         value: result
                     },
                     {
-                        name: "Balance",
+                        name: "Updated Balance",
                         value: `${balance}<:coin:1486430305207324763>`
                     }
                 );
