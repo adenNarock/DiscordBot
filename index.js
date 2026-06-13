@@ -26,6 +26,45 @@ const client = new Client({
 client.login(process.env.DISCORD_TOKEN);
 loadMoney()
 
+function cardName(card) {
+    if (card === 1) return "A";
+    if (card === 11) return "J";
+    if (card === 12) return "Q";
+    if (card === 13) return "K";
+    return card.toString();
+}
+
+function handValue(cards) {
+
+    let total = 0;
+    let aces = 0;
+
+    for (const card of cards) {
+
+        if (card === 1) {
+            total += 11;
+            aces++;
+        }
+        else if (card >= 11) {
+            total += 10;
+        }
+        else {
+            total += card;
+        }
+    }
+
+    while (total > 21 && aces > 0) {
+        total -= 10;
+        aces--;
+    }
+
+    return total;
+}
+
+function isBlackjack(cards) {
+    return cards.length === 2 && handValue(cards) === 21;
+}
+
 client.on("messageCreate", async (message) => {
     
     console.log(message)
@@ -53,7 +92,7 @@ client.on("messageCreate", async (message) => {
             return message.channel.send("Enter a valid amount.");
         }
 
-        if (!money[target.id]) {
+        if (money[target.id] === undefined) {
             money[target.id] = 0;
         }
 
@@ -117,11 +156,11 @@ client.on("messageCreate", async (message) => {
     const btn_heads = new ButtonBuilder()
         .setCustomId('btn1')
         .setLabel('Heads')
-        .setStyle(ButtonStyle.Primary);
+        .setStyle(ButtonStyle.Secondary);
     const btn_tails = new ButtonBuilder()
         .setCustomId('btn2')
         .setLabel('Tails')
-        .setStyle(ButtonStyle.Primary);
+        .setStyle(ButtonStyle.Secondary);
     const row = new ActionRowBuilder().addComponents(btn_heads, btn_tails);
 
     const sentMessage = await message.channel.send({components: [row]});
@@ -157,9 +196,13 @@ client.on("messageCreate", async (message) => {
             .setDescription(`<@${user.id}> has ${balance}<:coin:1486430305207324763>`)
 
     return message.channel.send({embeds: [embed]});
-}
+    }
 
-    if (message.content == '-dice'){
+    if (command === '-dice'){
+        const amount = args[0]
+        if (amount === undefined || isNaN(amount) || amount < 0){
+            return message.channel.send("Enter a valid amount")
+        }
         const btn_p1 = new ButtonBuilder()
             .setCustomId('Player1')
             .setLabel('P1 Join')
@@ -176,7 +219,119 @@ client.on("messageCreate", async (message) => {
         });
         games.set(gameMessage.id, {
             player1: "",
-            player2: ""
+            player2: "",
+            cost: amount
+        });
+    }
+
+    if (command === "-bj") {
+
+        const betAmount = parseInt(args[0]);
+        const user = message.author;
+        const money = loadMoney();
+        const existingGame = [...games.values()].find(g => g.playerId === user.id);
+            if (existingGame) {
+                return message.channel.send(
+                    "Finish your current blackjack game first."
+                );
+            }
+
+        const cards = Array.from(
+            { length: 42 },
+            () => Math.floor(Math.random() * 13) + 1
+        );
+
+
+        if (money[user.id] === undefined || money[user.id] < betAmount || !betAmount || isNaN(betAmount) || betAmount <= 0) {
+            return message.channel.send("Enter a valid amount");
+        }
+
+        const playerCards = [cards[0], cards[1]];
+        const dealerCards = [cards[2], cards[3]];
+        const playerBlackjack = isBlackjack(playerCards);
+        const dealerBlackjack = isBlackjack(dealerCards);
+
+        if (playerBlackjack || dealerBlackjack) {
+            let result;
+            let color;
+
+            if (playerBlackjack && dealerBlackjack) {
+                result = "🤝 Both have Blackjack!";
+                color = 0xFFFF00;
+            }
+            else if (playerBlackjack) {
+                result = "🃏 BLACKJACK!";
+                color = 0xFFD700;
+                money[user.id] += Math.round(1.5 * betAmount);
+            }
+            else {
+                result = "💀 Dealer Blackjack!";
+                color = 0xFF0000;
+                money[user.id] -= betAmount;
+            }
+            const balance = money[user.id];
+            const embed = new EmbedBuilder()
+                .setTitle(result)
+                .setColor(color)
+                .addFields(
+                    {
+                        name: `Your Hand (${handValue(playerCards)})`,
+                        value: playerCards.map(cardName).join(", ")
+                    },
+                    {
+                        name: `Dealer (${handValue(dealerCards)})`,
+                        value: dealerCards.map(cardName).join(", ")
+                    },
+                    {
+                        name: "Balance",
+                        value: `${balance}<:coin:1486430305207324763>`
+                    }
+                );
+            saveMoney(money);
+            return message.channel.send({embeds: [embed]});
+        }
+        
+        const hit = new ButtonBuilder()
+            .setCustomId("btnHit")
+            .setLabel("Hit")
+            .setStyle(ButtonStyle.Success);
+
+        const stand = new ButtonBuilder()
+            .setCustomId("btnStand")
+            .setLabel("Stand")
+            .setStyle(ButtonStyle.Danger);
+
+        const row = new ActionRowBuilder()
+            .addComponents(hit, stand);
+
+        const embed = new EmbedBuilder()
+            .setTitle("🃏 Blackjack")
+            .setColor(0x00AAFF)
+            .addFields(
+                {
+                    name: `Your Hand (${handValue(playerCards)})`,
+                    value: playerCards.map(cardName).join(", "),
+                    inline: false
+                },
+                {
+                    name: `Dealer (${handValue([dealerCards[0]])})`,
+                    value: `${cardName(dealerCards[0])}, ?`,
+                    inline: false
+                }
+            );
+
+        const gameMessage = await message.channel.send({
+            embeds: [embed],
+            components: [row]
+        });
+
+        games.set(gameMessage.id, {
+            playerId: user.id,
+            bet: betAmount,
+            playerCards,
+            dealerCards,
+            deck: cards,
+            nextCard: 4
         });
     }
 });
@@ -229,7 +384,7 @@ client.on('interactionCreate', async(interaction) => {
             .setColor(win ? 0x00FF00 : 0xFF0000)
             .addFields(
                 { name: "Result", value: hort, inline: true },
-                { name: "Balance", value: balance.toString(), inline: true }
+                { name: "Balance", value: balance.toString() + "<:coin:1486430305207324763>", inline: true }
             )
 
         await interaction.update({
@@ -244,7 +399,12 @@ client.on('interactionCreate', async(interaction) => {
         const money = loadMoney();
 
         if (!game) return;
-
+        if (money[interaction.user.id] < game.cost){
+            return interaction.reply({
+                content: "Not enough <:coin:1486430305207324763> for this duel",
+                ephemeral: true
+            });
+        }
         // Save the player's ID
         if (interaction.customId === "Player1") {
 
@@ -307,8 +467,8 @@ client.on('interactionCreate', async(interaction) => {
         const money = loadMoney();
 
         if (!tie) {
-            money[winner] = (money[winner] ?? 0) + 1;
-            money[loser] = (money[loser] ?? 0) - 1;
+            money[winner] = (money[winner] ?? 0) + game.cost;
+            money[loser] = (money[loser] ?? 0) - game.cost;
             saveMoney(money);
         }
 
@@ -336,7 +496,7 @@ client.on('interactionCreate', async(interaction) => {
                     name: "Result",
                     value: tie
                         ? "🤝 Tie!"
-                        : `🏆 <@${winner}> wins (+1<:coin:1486430305207324763>)`
+                        : `🏆 <@${winner}> wins (+` + game.cost + ` <:coin:1486430305207324763>)`
                 }
             )
 
@@ -374,5 +534,171 @@ client.on('interactionCreate', async(interaction) => {
             components: [row]
         });
         return;
+    }
+
+    if (interaction.customId === "btnHit" || interaction.customId === "btnStand"){
+        if (interaction.customId === "btnHit") {
+
+            const game = games.get(interaction.message.id);
+
+            if (!game) {
+                return interaction.reply({
+                    content: "Game not found.",
+                    ephemeral: true
+                });
+            }
+
+            if (interaction.user.id !== game.playerId) {
+                return interaction.reply({
+                    content: "This isn't your game.",
+                    ephemeral: true
+                });
+            }
+
+            const newCard = game.deck[game.nextCard];
+            game.nextCard++;
+
+            game.playerCards.push(newCard);
+
+            const playerTotal = handValue(game.playerCards);
+
+            if (playerTotal > 21) {
+
+                const money = loadMoney();
+                money[game.playerId] -= game.bet;
+                saveMoney(money);
+
+                games.delete(interaction.message.id);
+                const balance = money[game.playerId];
+                const embed = new EmbedBuilder()
+                    .setTitle("💥 Bust")
+                    .setColor(0xFF0000)
+                    .addFields(
+                        {
+                            name: `Your Hand (${playerTotal})`,
+                            value: game.playerCards.map(cardName).join(", ")
+                        },
+                        {
+                            name: `Dealer (${handValue(game.dealerCards)})`,
+                            value: game.dealerCards.map(cardName).join(", ")
+                        },
+                        {
+                            name: "Balance",
+                            value: `${balance}<:coin:1486430305207324763>`
+                        }
+                    );
+
+                return interaction.update({
+                    embeds: [embed],
+                    components: []
+                });
+            }
+
+            const embed = new EmbedBuilder()
+                .setTitle("🃏 Blackjack")
+                .setColor(0x00AAFF)
+                .addFields(
+                    {
+                        name: `Your Hand (${playerTotal})`,
+                        value: game.playerCards.map(cardName).join(", ")
+                    },
+                    {
+                        name: "Dealer",
+                        value: `${cardName(game.dealerCards[0])}, ?`
+                    },
+                );
+
+            games.set(interaction.message.id, game);
+
+            return interaction.update({
+                embeds: [embed],
+                components: interaction.message.components
+            });
+        }
+        if (interaction.customId === "btnStand") {
+
+            const game = games.get(interaction.message.id);
+
+            if (!game) {
+                return;
+            }
+
+            if (interaction.user.id !== game.playerId) {
+                return interaction.reply({
+                    content: "This isn't your game.",
+                    ephemeral: true
+                });
+            }
+
+            while (handValue(game.dealerCards) < 17) {
+
+                game.dealerCards.push(
+                    game.deck[game.nextCard]
+                );
+
+                game.nextCard++;
+            }
+
+            const playerTotal = handValue(game.playerCards);
+            const dealerTotal = handValue(game.dealerCards);
+
+            let result;
+            let color;
+            const money = loadMoney();
+            if (dealerTotal > 21) {
+
+                result = "Dealer Busts! You Win!";
+                color = 0x00FF00;
+                money[game.playerId] += game.bet;
+
+            } else if (playerTotal > dealerTotal) {
+
+                result = "You Win!";
+                color = 0x00FF00;
+                money[game.playerId] += game.bet;
+
+            } else if (dealerTotal > playerTotal) {
+
+                result = "You Lose";
+                color = 0xFF0000;
+                money[game.playerId] -= game.bet;
+            } else {
+
+                result = "Push (Tie)";
+                color = 0xFFFF00;
+            }
+
+            saveMoney(money);
+            const balance = money[game.playerId];
+
+            const embed = new EmbedBuilder()
+                .setTitle("🃏 Blackjack Final")
+                .setColor(color)
+                .addFields(
+                    {
+                        name: `Your Hand (${playerTotal})`,
+                        value: game.playerCards.map(cardName).join(", ")
+                    },
+                    {
+                        name: `Dealer (${dealerTotal})`,
+                        value: game.dealerCards.map(cardName).join(", ")
+                    },
+                    {
+                        name: "Result",
+                        value: result
+                    },
+                    {
+                        name: "Balance",
+                        value: `${balance}<:coin:1486430305207324763>`
+                    }
+                );
+
+            games.delete(interaction.message.id);
+
+            return interaction.update({
+                embeds: [embed],
+                components: []
+            });
+        }
     }
 })
