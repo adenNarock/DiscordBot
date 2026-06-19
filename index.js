@@ -125,17 +125,14 @@ client.on("messageCreate", async (message) => {
         const money = loadMoney()
         const authorid = message.author.id;
         
-        if (betAmount > 10000){
-            return message.channel.send("Please contact a moderator for assistance")
-        }
-        if (money[authorid] === undefined || betAmount > money[authorid] || isNaN(betAmount) || betAmount === undefined || betAmount < 0 || betAmount > 10000){
+        if (money[authorid] === undefined || betAmount > money[authorid] || isNaN(betAmount) || betAmount === undefined || betAmount < 0 || betAmount >= 10000){
             if (money[authorid] === undefined){
                 money[authorid] = 0;
                 saveMoney(money)
                 return message.channel.send("Not enough <:coin:1486430305207324763>")
             } else if (betAmount > money[authorid]){
                 return message.channel.send("Not enough <:coin:1486430305207324763>")
-            } else if (betAmount > 10000){
+            } else if (betAmount >= 10000){
                 return message.channel.send("Please contact a moderator for assistance")
             } else {
                 return message.channel.send("Enter a valid amount")
@@ -203,7 +200,7 @@ client.on("messageCreate", async (message) => {
         if (amount === undefined || isNaN(amount) || amount < 0){
             return message.channel.send("Enter a valid amount")
         }
-        if (amount > 10000){
+        if (amount >= 10000){
             return message.channel.send("Please contact a moderator for assistance")
         }
         const btn_p1 = new ButtonBuilder()
@@ -250,7 +247,7 @@ client.on("messageCreate", async (message) => {
             return message.channel.send("Enter a valid amount");
         } else if (money[user.id] < betAmount || money[user.id] === undefined){
             return message.channel.send("Not enough <:coin:1486430305207324763>")
-        } else if (betAmount > 10000) {
+        } else if (betAmount >= 10000) {
             return message.channel.send("Please contact a moderator for assistance")
         }
 
