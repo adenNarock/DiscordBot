@@ -5,7 +5,7 @@ dotenv.config()
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, GatewayIntentBits, EmbedBuilder, underline} from 'discord.js';
 
 const games = new Map();
-
+const mods = ["1510406268089536522", "1393468209394487346", "1446213677152997539", "1509766418051366942"];// my serv (blahblah), founder, businessmen, staff,
 function loadMoney() {
     return JSON.parse(fs.readFileSync("money.json", "utf8"));
 }
@@ -66,7 +66,8 @@ function isBlackjack(cards) {
 }
 
 client.on("messageCreate", async (message) => {
-    if (!(message.guild.id === "1481072218078449859")) return; // sxn server only
+    if (!message.guild) return;
+    if (message.guild.id !== "1481072218078449859") return; // sxn server only
     // if (!message.guild) return; // for all servers
     const money = loadMoney();
     if (isNaN(money[message.author.id]) || money[message.author.id] === undefined){
@@ -125,18 +126,32 @@ client.on("messageCreate", async (message) => {
         const money = loadMoney()
         const authorid = message.author.id;
         
-        if (money[authorid] === undefined || betAmount > money[authorid] || isNaN(betAmount) || betAmount === undefined || betAmount < 0 || betAmount >= 10000){
+        const isMod = mods.some(roleId => message.member.roles.cache.has(roleId));
+
+        if (
+            money[authorid] === undefined ||
+            betAmount > money[authorid] ||
+            isNaN(betAmount) ||
+            betAmount === undefined ||
+            betAmount < 0
+        ){
             if (money[authorid] === undefined){
                 money[authorid] = 0;
-                saveMoney(money)
-                return message.channel.send("Not enough <:coin:1486430305207324763>")
-            } else if (betAmount > money[authorid]){
-                return message.channel.send("Not enough <:coin:1486430305207324763>")
-            } else if (betAmount >= 10000){
-                return message.channel.send("Please contact a moderator for assistance")
-            } else {
-                return message.channel.send("Enter a valid amount")
+                saveMoney(money);
+                return message.channel.send("Not enough <:coin:1486430305207324763>");
             }
+            else if (betAmount > money[authorid]){
+                return message.channel.send("Not enough <:coin:1486430305207324763>");
+            }
+            else{
+                return message.channel.send("Enter a valid amount");
+            }
+        }
+
+        if (betAmount >= 10000 && !isMod){
+            return message.channel.send(
+                "Please contact a moderator for assistance"
+            );
         }
         
         const btn_heads = new ButtonBuilder()
@@ -155,7 +170,8 @@ client.on("messageCreate", async (message) => {
         });
         games.set(sentMessage.id, {
             cfBetAmount: betAmount,
-            playerId: authorid
+            playerId: authorid,
+            processing: false
         });
     }
     
@@ -200,7 +216,7 @@ client.on("messageCreate", async (message) => {
         if (amount === undefined || isNaN(amount) || amount < 0){
             return message.channel.send("Enter a valid amount")
         }
-        if (amount >= 10000){
+        if (amount >= 10000 && (!mods.some(roleId => message.member.roles.cache.has(roleId)))){
             return message.channel.send("Please contact a moderator for assistance")
         }
         const btn_p1 = new ButtonBuilder()
@@ -247,7 +263,7 @@ client.on("messageCreate", async (message) => {
             return message.channel.send("Enter a valid amount");
         } else if (money[user.id] < betAmount || money[user.id] === undefined){
             return message.channel.send("Not enough <:coin:1486430305207324763>")
-        } else if (betAmount >= 10000) {
+        } else if (betAmount >= 10000 && !mods.some(roleId => message.member.roles.cache.has(roleId))) {
             return message.channel.send("Please contact a moderator for assistance")
         }
 
@@ -342,8 +358,7 @@ client.on("messageCreate", async (message) => {
     
 
     if (command === "-setbal") {
-        if (!["1510406268089536522", "1393468209394487346", "1446213677152997539", "1509766418051366942"]
-        .some(roleId => message.member.roles.cache.has(roleId))) return message.channel.send("You do not have permission to use this command."); // founder, businessmen, staff
+        if (!mods.some(roleId => message.member.roles.cache.has(roleId))) return message.channel.send("You do not have permission to use this command."); // founder, businessmen, staff
         
         const money = loadMoney();
 
@@ -401,6 +416,15 @@ client.on('interactionCreate', async(interaction) => {
                 ephemeral: true
             });
         }
+
+        if (game.processing){
+            return interaction.reply({
+                content: "Already processing.",
+                ephemeral: true
+            });
+        }
+        game.processing = true;
+
         if (interaction.user.id !== game.playerId) {
             return interaction.reply({
                 content: "This isn't your coinflip.",
@@ -474,6 +498,7 @@ client.on('interactionCreate', async(interaction) => {
         game.processing = true;
 
         if (money[interaction.user.id] < game.cost){
+            game.processing = false;
             return interaction.reply({
                 content: "Not enough <:coin:1486430305207324763> for this duel",
                 ephemeral: true
@@ -483,6 +508,7 @@ client.on('interactionCreate', async(interaction) => {
         if (interaction.customId === "Player1") {
 
             if (game.player1) {
+                game.processing = false;
                 return interaction.reply({
                     content: "Player 1 has already joined.",
                     ephemeral: true
@@ -495,24 +521,24 @@ client.on('interactionCreate', async(interaction) => {
         if (interaction.customId === "Player2") {
 
             if (game.player2) {
+                game.processing = false;
                 return interaction.reply({
                     content: "Player 2 has already joined.",
                     ephemeral: true
                 });
-                game.processing = false;
             }
 
             if (interaction.user.id === game.player1) {
+                game.processing = false;
                 return interaction.reply({
                     content: "You can't join as both players.",
                     ephemeral: true
                 });
-                game.processing = false;
+
             }
 
             game.player2 = interaction.user.id;
         }
-
         // Both players joined
         if (game.player1 && game.player2) {
 
@@ -541,6 +567,18 @@ client.on('interactionCreate', async(interaction) => {
         }
 
         const money = loadMoney();
+
+        if (
+            money[game.player1] < game.cost ||
+            money[game.player2] < game.cost
+        ){
+            games.delete(interaction.message.id);
+
+            return interaction.update({
+                content: "A player no longer has enough coins.",
+                components: []
+            });
+        }
 
         if (!tie) {
             money[winner] = (money[winner] ?? 0) + game.cost;
@@ -604,7 +642,7 @@ client.on('interactionCreate', async(interaction) => {
                     .setStyle(ButtonStyle.Primary)
             );
         }
-
+        game.processing = false;
         await interaction.update({
             content: "Waiting for both players...",
             components: [row]
