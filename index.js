@@ -66,7 +66,8 @@ function isBlackjack(cards) {
 }
 
 client.on("messageCreate", async (message) => {
-    if (!message.guild) return;
+    if (!(message.guild.id === "1481072218078449859")) return; // sxn server only
+    // if (!message.guild) return; // for all servers
     const money = loadMoney();
     if (isNaN(money[message.author.id]) || money[message.author.id] === undefined){
         money[message.author.id] = 0;
@@ -74,103 +75,68 @@ client.on("messageCreate", async (message) => {
     }
     console.log(message)
     if (message.author.bot) return;
-    if (!["1510406268089536522", "1393468209394487346", "1446213677152997539", "1509766418051366942"].some(roleId => message.member.roles.cache.has(roleId))) return; // founder, businessmen, staff
+    
 
     const args = message.content.trim().split(/ +/);
     const command = args.shift().toLowerCase();
-    if (command === "-setbal") {
-        const money = loadMoney();
-
-        const target = message.mentions.users.first();
-        const action = args[1]?.toLowerCase();
-        const amount = parseInt(args[2]);
-
-        if (!target) {
-            return message.channel.send("Mention a user.");
-        }
-
-        if (!["add", "subtract", "set"].includes(action)) {
-            return message.channel.send("Use add, subtract, or set.");
-        }
-
-        if (isNaN(amount)) {
-            return message.channel.send("Enter a valid amount.");
-        }
-
-        if (money[target.id] === undefined) {
-            money[target.id] = 0;
-        }
-
-        switch (action) {
-            case "add":
-                money[target.id] += amount;
-                break;
-
-            case "subtract":
-                money[target.id] -= amount;
-                break;
-
-            case "set":
-                money[target.id] = amount;
-                break;
-        }
-
-        saveMoney(money);
-        const embed = new EmbedBuilder()
-            .setTitle("Balance Change")
-            .setColor(0x00BBFF)
-            .setDescription(`${target.username} now has ${money[target.id]}<:coin:1486430305207324763>`)
-        message.channel.send({embeds: [embed]});
-    }
+    
+    if (!["1510406268089536522", "1393468209394487346", "1446213677152997539", "1509766418051366942", "1515526430522609824"]
+        .some(roleId => message.member.roles.cache.has(roleId))) return; // my serv (blahblah), founder, businessmen, staff, my serv(bleh),
+    
 
     if (command === "-roll") {
 
-    const numDice = parseInt(args[0]);
-    if (numDice > 100){
-        return message.channel.send("Too many dice!");
-    }
-    let rolls = [];
+        const numDice = parseInt(args[0]);
+        if (numDice > 100){
+            return message.channel.send("Too many dice!");
+        }
+        let rolls = [];
 
-    if (args.length === 0) {
+        if (args.length === 0) {
 
-        const num = Math.floor(Math.random() * 6) + 1;
-        rolls = [num];
+            const num = Math.floor(Math.random() * 6) + 1;
+            rolls = [num];
 
-    } else if (isNaN(numDice)) {
+        } else if (isNaN(numDice)) {
 
-        return message.channel.send("Enter a valid number");
+            return message.channel.send("Enter a valid number");
 
-    } else {
+        } else {
 
-        rolls = Array.from(
-            { length: numDice },
-            () => Math.floor(Math.random() * 6) + 1
-        );
+            rolls = Array.from(
+                { length: numDice },
+                () => Math.floor(Math.random() * 6) + 1
+            );
 
-    }
-    
-    const user = message.author;
+        }
+        
+        const user = message.author;
 
-        const embed = new EmbedBuilder()
-            .setTitle("🎲 Dice Roll")
-            .setColor(0xAA00FF)
-            .setDescription(`${user} rolled 🎲 **${rolls.join(", ")}**`)
+            const embed = new EmbedBuilder()
+                .setTitle("🎲 Dice Roll")
+                .setColor(0xAA00FF)
+                .setDescription(`${user} rolled 🎲 **${rolls.join(", ")}**`)
 
-        return message.channel.send({ embeds: [embed] });
+            return message.channel.send({ embeds: [embed] });
     }
 
     if (command === "-cf"){
         const betAmount = parseInt(args[0])
         const money = loadMoney()
         const authorid = message.author.id;
-
-        if (money[authorid] === undefined || betAmount > money[authorid] || isNaN(betAmount) || betAmount === undefined || betAmount < 0){
+        
+        if (betAmount > 10000){
+            return message.channel.send("Please contact a moderator for assistance")
+        }
+        if (money[authorid] === undefined || betAmount > money[authorid] || isNaN(betAmount) || betAmount === undefined || betAmount < 0 || betAmount > 10000){
             if (money[authorid] === undefined){
                 money[authorid] = 0;
                 saveMoney(money)
                 return message.channel.send("Not enough <:coin:1486430305207324763>")
             } else if (betAmount > money[authorid]){
                 return message.channel.send("Not enough <:coin:1486430305207324763>")
+            } else if (betAmount > 10000){
+                return message.channel.send("Please contact a moderator for assistance")
             } else {
                 return message.channel.send("Enter a valid amount")
             }
@@ -186,7 +152,10 @@ client.on("messageCreate", async (message) => {
             .setStyle(ButtonStyle.Secondary);
         const row = new ActionRowBuilder().addComponents(btn_heads, btn_tails);
 
-        const sentMessage = await message.channel.send({components: [row]});
+        const sentMessage = await message.channel.send({
+            content: `-# ${message.author.displayName}'s coinflip`,
+            components: [row]
+        });
         games.set(sentMessage.id, {
             cfBetAmount: betAmount,
             playerId: authorid
@@ -234,6 +203,9 @@ client.on("messageCreate", async (message) => {
         if (amount === undefined || isNaN(amount) || amount < 0){
             return message.channel.send("Enter a valid amount")
         }
+        if (amount > 10000){
+            return message.channel.send("Please contact a moderator for assistance")
+        }
         const btn_p1 = new ButtonBuilder()
             .setCustomId('Player1')
             .setLabel('P1 Join')
@@ -251,7 +223,8 @@ client.on("messageCreate", async (message) => {
         games.set(gameMessage.id, {
             player1: "",
             player2: "",
-            cost: amount
+            cost: amount,
+            processing: false
         });
     }
 
@@ -277,6 +250,8 @@ client.on("messageCreate", async (message) => {
             return message.channel.send("Enter a valid amount");
         } else if (money[user.id] < betAmount || money[user.id] === undefined){
             return message.channel.send("Not enough <:coin:1486430305207324763>")
+        } else if (betAmount > 10000) {
+            return message.channel.send("Please contact a moderator for assistance")
         }
 
         const playerCards = [cards[0], cards[1]];
@@ -367,6 +342,55 @@ client.on("messageCreate", async (message) => {
             nextCard: 4
         });
     }
+    
+
+    if (command === "-setbal") {
+        if (!["1510406268089536522", "1393468209394487346", "1446213677152997539", "1509766418051366942"]
+        .some(roleId => message.member.roles.cache.has(roleId))) return message.channel.send("You do not have permission to use this command."); // founder, businessmen, staff
+        
+        const money = loadMoney();
+
+        const target = message.mentions.users.first();
+        const action = args[1]?.toLowerCase();
+        const amount = parseInt(args[2]);
+
+        if (!target) {
+            return message.channel.send("Mention a user.");
+        }
+
+        if (!["add", "subtract", "set"].includes(action)) {
+            return message.channel.send("Use add, subtract, or set.");
+        }
+
+        if (isNaN(amount)) {
+            return message.channel.send("Enter a valid amount.");
+        }
+
+        if (money[target.id] === undefined) {
+            money[target.id] = 0;
+        }
+
+        switch (action) {
+            case "add":
+                money[target.id] += amount;
+                break;
+
+            case "subtract":
+                money[target.id] -= amount;
+                break;
+
+            case "set":
+                money[target.id] = amount;
+                break;
+        }
+
+        saveMoney(money);
+        const embed = new EmbedBuilder()
+            .setTitle("Balance Change")
+            .setColor(0x00BBFF)
+            .setDescription(`${target.username} now has ${money[target.id]}<:coin:1486430305207324763>`)
+        message.channel.send({embeds: [embed]});
+    }
 });
 
 client.on('interactionCreate', async(interaction) => {
@@ -382,7 +406,7 @@ client.on('interactionCreate', async(interaction) => {
         }
         if (interaction.user.id !== game.playerId) {
             return interaction.reply({
-                content: "This isn't your game.",
+                content: "This isn't your coinflip.",
                 ephemeral: true
             });
         }
@@ -442,6 +466,16 @@ client.on('interactionCreate', async(interaction) => {
         const money = loadMoney();
 
         if (!game) return;
+
+        if (game.processing) {
+            return interaction.reply({
+                content: "Please wait...",
+                ephemeral: true
+            });
+        }
+
+        game.processing = true;
+
         if (money[interaction.user.id] < game.cost){
             return interaction.reply({
                 content: "Not enough <:coin:1486430305207324763> for this duel",
@@ -468,6 +502,7 @@ client.on('interactionCreate', async(interaction) => {
                     content: "Player 2 has already joined.",
                     ephemeral: true
                 });
+                game.processing = false;
             }
 
             if (interaction.user.id === game.player1) {
@@ -475,6 +510,7 @@ client.on('interactionCreate', async(interaction) => {
                     content: "You can't join as both players.",
                     ephemeral: true
                 });
+                game.processing = false;
             }
 
             game.player2 = interaction.user.id;
