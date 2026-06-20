@@ -67,8 +67,8 @@ function isBlackjack(cards) {
 
 client.on("messageCreate", async (message) => {
     if (!message.guild) return;
-    if (message.guild.id !== "1481072218078449859") return; // sxn server only
-    // if (!message.guild) return; // for all servers
+    // if (message.guild.id !== "1481072218078449859") return; // sxn server only
+    if (!message.guild) return; // for all servers
     const money = loadMoney();
     if (isNaN(money[message.author.id]) || money[message.author.id] === undefined){
         money[message.author.id] = 0;
@@ -417,20 +417,21 @@ client.on('interactionCreate', async(interaction) => {
             });
         }
 
-        if (game.processing){
-            return interaction.reply({
-                content: "Already processing.",
-                ephemeral: true
-            });
-        }
-        game.processing = true;
-
         if (interaction.user.id !== game.playerId) {
             return interaction.reply({
                 content: "This isn't your coinflip.",
                 ephemeral: true
             });
         }
+
+        if (game.processing){
+            return interaction.reply({
+                content: "Already processing.",
+                ephemeral: true
+            });
+        }
+
+        game.processing = true;
         const num = Math.random();
         let hort = "Heads"
         if (num <= 0.5){
