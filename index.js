@@ -194,7 +194,7 @@ client.on("messageCreate", async (message) => {
         message.channel.send({embeds: [embed]});
     }
 
-    if (message.content.startsWith("-bal")) {
+    if (command === "-bal") {
 
         const money = loadMoney();
         const user = message.mentions.users.first() || message.author;
@@ -402,6 +402,29 @@ client.on("messageCreate", async (message) => {
             .setColor(0x00BBFF)
             .setDescription(`${target.username} now has ${money[target.id]}<:coin:1486430305207324763>`)
         message.channel.send({embeds: [embed]});
+    }
+
+    if (command === "-baltop") {
+        const money = loadMoney();
+        
+        let topPlayers = Object.entries(money)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10);
+        
+        const leaderboardLines = await Promise.all(
+            topPlayers.map(async ([id, balance], index) => {
+                const user = await client.users.fetch(id).catch(() => null);
+                const medal = ["🥇", "🥈", "🥉"][index] ?? `#${index + 1}`;
+                return `${medal}  •  **${user?.username ?? "Unknown User"}** - <:coin:1486430305207324763>${balance.toLocaleString()}`;
+            })
+        );
+        
+        const embed = new EmbedBuilder()
+            .setTitle("🏆 Richest Players")
+            .setColor(0xFFD700)
+            .setDescription(leaderboardLines.join("\n"))
+        
+        message.channel.send({ embeds: [embed] });
     }
 });
 
